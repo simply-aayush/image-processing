@@ -1,0 +1,213 @@
+#include <iostream>
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+
+using namespace cv;
+using namespace std;
+
+int thresh = 100;
+int alpha=100;
+int max_thresh = 255;
+int c=1,b=1;
+RNG rng(12345);
+void set_thresh(int, void*)
+{thresh=alpha;
+b=c+1;}
+Mat imgThresholded;
+Mat src; Mat src_gray;
+
+void thresh_callback(int, void* )
+{ blur( imgThresholded, imgThresholded, Size(b,b) );
+  imshow( "Source2", imgThresholded );
+  Mat src_copy = imgThresholded.clone();
+  Mat threshold_output;
+  vector<vector<Point> > contours;
+  vector<Vec4i> hierarchy;
+
+  threshold( imgThresholded, threshold_output, thresh, 255, THRESH_BINARY );
+
+  findContours( threshold_output, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0) );
+  vector<vector<Point> >hull( contours.size() );
+  for( size_t i = 0; i < contours.size(); i++ )
+     {   convexHull( Mat(contours[i]), hull[i], false ); }
+  Mat drawing = Mat::zeros( threshold_output.size(), CV_8UC3 );
+
+  for( size_t i = 0; i< contours.size(); i++ )
+     {
+       Scalar color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
+       drawContours( drawing, contours, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
+       drawContours( drawing, hull, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
+     }
+  namedWindow( "Hull demo", WINDOW_AUTOSIZE );
+ 
+  imshow( "Hull demo", drawing );
+}
+
+void thresh_callback_2(int, void* )
+{ blur( src_gray, src_gray, Size(b,b) ); //blur for better hull
+  imshow( "Source", src_gray );// show source
+  Mat src_copy = src.clone();//make a copy
+  Mat threshold_output;//declare a mat
+  vector<vector<Point> > contours;//declare contours   points
+  vector<Vec4i> hierarchy; //declare 4d integer vector
+
+  threshold( src_gray, threshold_output, thresh, 255, THRESH_BINARY ); //binary image!
+
+ findContours( threshold_output, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0)) ; // find contours of image
+ vector<vector<Point> >hull( contours.size() );// hull of contour many points
+  bool Nc=sizeof(contours);
+
+for( size_t i = 0; i < contours.size(); i++ )//loop until  all contours are considered
+     {   convexHull( Mat(contours[i]), hull[i], false ); } // make a matrix of convex hull of all of closed contours! do what? remove contours of less area!
+  Mat drawing = Mat::zeros( threshold_output.size(), CV_8UC3 );
+
+CvMemStorage* storage = cvCreateMemStorage();
+CvSeq* first_contour = NULL;
+int maxitem=-1;
+double area=0,areamax=0;
+int maxn=0;
+/*cvFindContours(
+img_8uc1,
+storage,
+&first_contour,
+sizeof(CvContour),
+CV_RETR_LIST // Try all four values and see what happens
+);*/
+int n=0;
+//printf( "Total Contours Detected: %d\n", Nc );
+
+if(Nc>0)
+{
+for( size_t i = 0; i< contours.size(); i++ ) 
+{
+     
+//cvCvtColor( img_8uc1, img_8uc3, CV_GRAY2BGR );
+
+area=contourArea(hull[i]);
+
+if(area>areamax)
+{areamax=area;
+maxitem=i;
+maxn=n;
+}
+}
+}
+
+  for( size_t i = 0; i< contours.size(); i++ )
+     {
+       Scalar color = Scalar( 200,200,200 );
+      // drawContours( drawing, contours, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
+       drawContours( drawing, hull, maxn, color, 1, 8, vector<Vec4i>(), 0, Point() );
+     }
+int var;
+Scalar color = Scalar( 200,200,200 );
+drawContours( drawing, contours, maxn, color, 1, 8, vector<Vec4i>(), 0, Point() );
+  namedWindow( "Hull demo", WINDOW_AUTOSIZE );
+Mat img = drawing;
+/*for (int i = 0; i < img.cols; i++ ) {
+        for (int j = 0; j < img.rows; j++) {
+var=(int)pointPolygonTest(hull[maxn],drawing.at<Point2f>(j, i),0);
+            img.at<Vec3b>(j, i)[0] =var;
+        }
+}*/
+ 
+  imshow( "Hull demo 2", drawing );
+  imshow( "masked", img );
+}
+
+
+
+
+
+ int main( int argc, char** argv )
+ {
+    //VideoCapture cap(0); //capture the video from web cam
+
+    //if ( !cap.isOpened() )  // if not success, exit program
+    //{
+        // cout << "Cannot open the web cam" << endl;
+      //   return -1;
+    //}
+
+    namedWindow("Control", CV_WINDOW_AUTOSIZE); //create a window called "Control"
+
+ int iLowH = 0;
+ int iHighH = 179;
+
+ int iLowS = 0; 
+ int iHighS = 255;
+
+ int iLowV = 0;
+ int iHighV = 255;
+
+ //Create trackbars in "Control" window
+ cvCreateTrackbar("LowH", "Control", &iLowH, 179); //Hue (0 - 179)
+ cvCreateTrackbar("HighH", "Control", &iHighH, 179);
+
+ cvCreateTrackbar("LowS", "Control", &iLowS, 255); //Saturation (0 - 255)
+ cvCreateTrackbar("HighS", "Control", &iHighS, 255);
+
+ cvCreateTrackbar("LowV", "Control", &iLowV, 255); //Value (0 - 255)
+ cvCreateTrackbar("HighV", "Control", &iHighV, 255);
+
+    while (true)
+    {
+						Mat imgOriginal;
+
+						//bool bSuccess = cap.read(imgOriginal); // read a new frame from video
+
+						imgOriginal=imread("2.jpeg");
+					/*	 if (!bSuccess) //if not success, break loop
+						{
+						     cout << "Cannot read a frame from video stream" << endl;
+						     break;
+						}*/
+
+					  Mat imgHSV;
+
+					  cvtColor(imgOriginal, imgHSV, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
+					 
+					  
+
+					  inRange(imgHSV, Scalar(iLowH, iLowS, iLowV), Scalar(iHighH, iHighS, iHighV), imgThresholded); //Threshold the image
+//					      imshow("before ", imgThresholded);
+					  //morphological opening (remove small objects from the foreground)
+					  erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)) );
+//						imshow("eroded", imgThresholded);
+				  dilate( imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)) ); 
+//						imshow("dilated", imgThresholded);
+					  //morphological closing (fill small holes in the foreground)
+					  dilate( imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)) ); 
+					  erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)) );
+
+//					  imshow("Thresholded Image", imgThresholded); //show the thresholded image
+
+				//	  cvtColor( imgThresholded, imgThresholded, COLOR_BGR2GRAY );
+
+					  
+					//namedWindow("Controlblur", CV_WINDOW_AUTOSIZE);//
+					  namedWindow("Source2", WINDOW_AUTOSIZE );//
+
+					  createTrackbar( " Threshold:", "Control", &alpha, max_thresh, set_thresh );//
+					createTrackbar( " Blur:", "Control", &c, 200, set_thresh );//
+				/* *******************************************
+				//	src=imgThresholded;
+
+	  			//cvtColor( src, src_gray, COLOR_BGR2GRAY ); //color to grey
+					  *************************************/
+					src_gray=imgThresholded;
+thresh_callback( 0, 0 );
+thresh_callback_2( 0, 0 );
+
+					  imshow("Original", imgOriginal); //show the original image
+
+						if (waitKey(30) == 27) //wait for 'esc' key press for 30ms. If 'esc' key is pressed, break loop
+					       {
+						    cout << "esc key is pressed by user" << endl;
+						    break; 
+					       }
+    }
+
+   return 0;
+
+}
