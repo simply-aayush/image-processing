@@ -1,0 +1,44 @@
+// image-processing
+#include "iostream"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+using namespace std;
+using namespace cv;
+int main( int, char** argv )
+{ 	a:
+	RNG& rng = theRNG(); 
+	cout<<"enter cards, number of suits, and iterations";
+	int cards,suits,iter ;
+	cin>>cards>>suits>>iter;
+	suits=cards/suits;
+    int order[cards];
+    for(int i=0;i<cards;i++)
+	    {
+	    	order[i]=rng.uniform(1, suits+1);
+		}
+	 for(int i=0;i<cards;i++)
+	    {
+	    	cout<<order[i]<<endl;
+		}
+	
+	int pos=rng.uniform(1,suits+1);
+	while(pos<cards)
+		{
+			pos+=order[pos];
+		}
+	int guess_end=pos,count=0;
+	//loop for probalistic determination
+	for(int iterations=1;iterations<=iter;iterations++)
+		{
+			pos=rng.uniform(1,suits+1);
+			while(pos<cards)
+				{   cout<<pos<<" "
+					pos+=order[pos];
+				}
+			if(pos==guess_end){ count++;}
+		
+
+		}
+	cout<<"it worked >"<<count<<"<   of   >"<<iter<<"< times";
+ goto a;
+}
