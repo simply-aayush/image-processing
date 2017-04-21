@@ -1,0 +1,223 @@
+#include <iostream>
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+
+using namespace cv;
+using namespace std;
+
+int thresh = 100;
+int alpha=100;
+int max_thresh = 255;
+int c=1,b=1;
+RNG rng(12345);
+void set_thresh(int, void*)
+{thresh=alpha;
+b=c+1;}
+Mat imgpross,imgThresholded;
+Mat src; Mat src_gray;
+Mat threshold_output;
+Mat thinned;
+int iLowH = 0;
+int iHighH = 179;
+
+int iLowS = 192; 
+int iHighS = 255;
+
+int iLowV = 0;
+int iHighV = 255;
+
+
+void thresh_callback(Mat& imgOriginal )
+{   
+		imgThresholded=imgOriginal;
+
+	cvtColor(imgThresholded, imgThresholded, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
+	inRange(imgThresholded, Scalar(iLowH, iLowS, iLowV), Scalar(iHighH, iHighS, iHighV), imgThresholded); //Threshold the image
+	erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)) );
+	dilate( imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)) );
+				 
+blur( imgThresholded, imgThresholded, Size(b,b) );
+imshow( "Source2", imgThresholded );
+Mat src_copy = imgThresholded.clone();
+
+
+threshold( imgThresholded, imgThresholded, thresh, 255, THRESH_BINARY_INV );
+imshow( "Source3", imgThresholded );
+}
+
+
+
+
+/*void nodeit(cv::Mat& input)
+{ 	  vector<Point> points;
+
+	int count=0;
+	int r=3;
+	Mat im = input;
+	imshow( "im", im );
+
+		threshold( im, im, 200, 255, THRESH_BINARY );
+		imshow( "imgThresholded", im );
+
+	Point pt;
+	//loop to get the nodes
+	
+	for (int i = 1; i < input.rows-1; i++)
+    {
+        for (int j = 1; j < input.cols-1; j++)
+        {   int p1 = im.at<uchar>(i, j);
+            uchar p2 = im.at<uchar>(i-1, j);
+            uchar p3 = im.at<uchar>(i-1, j+1);
+            uchar p4 = im.at<uchar>(i, j+1);
+            uchar p5 = im.at<uchar>(i+1, j+1);
+            uchar p6 = im.at<uchar>(i+1, j);
+            uchar p7 = im.at<uchar>(i+1, j-1);
+            uchar p8 = im.at<uchar>(i, j-1);
+            uchar p9 = im.at<uchar>(i-1, j-1);
+            cout<<i<<'\t'<<j<<'\t'<<p1<<'\n';
+
+            imshow("k",input);
+		    if(p1>0)
+			{
+				//int val=(p2+p3+p4+p5+p6+p7+p8+p9);
+				//if(val>=4)
+				//{
+				   	//	cout<<i<<'\t'<<j<<'\n';
+
+					pt.x=j/5;
+					pt.y=i;
+					//points.push_back(pt);
+					circle(input, pt, 1, Scalar(0, 0, 255));
+					count++;	
+				//}
+			}   
+
+        }
+    }
+    cout<<count;
+   // for(int i = 0; i < count; i++ )
+   //  circle(input, points[i], 3, Scalar(0, 0, 255), CV_FILLED, CV_AA);       
+}
+
+
+*/
+
+
+void thinningIteration(cv::Mat& im, int iter)
+{
+    cv::Mat marker = cv::Mat::zeros(im.size(), CV_8UC1);
+
+    for (int i = 1; i < im.rows-1; i++)
+    {
+        for (int j = 1; j < im.cols-1; j++)
+        {
+            uchar p2 = im.at<uchar>(i-1, j);
+            uchar p3 = im.at<uchar>(i-1, j+1);
+            uchar p4 = im.at<uchar>(i, j+1);
+            uchar p5 = im.at<uchar>(i+1, j+1);
+            uchar p6 = im.at<uchar>(i+1, j);
+            uchar p7 = im.at<uchar>(i+1, j-1);
+            uchar p8 = im.at<uchar>(i, j-1);
+            uchar p9 = im.at<uchar>(i-1, j-1);
+
+            int A  = (p2 == 0 && p3 == 1) + (p3 == 0 && p4 == 1) + 
+                     (p4 == 0 && p5 == 1) + (p5 == 0 && p6 == 1) + 
+                     (p6 == 0 && p7 == 1) + (p7 == 0 && p8 == 1) +
+                     (p8 == 0 && p9 == 1) + (p9 == 0 && p2 == 1);
+            int B  = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
+            int m1 = iter == 0 ? (p2 * p4 * p6) : (p2 * p4 * p8);
+            int m2 = iter == 0 ? (p4 * p6 * p8) : (p2 * p6 * p8);
+
+            if (A == 1 && (B >= 2 && B <= 6) && m1 == 0 && m2 == 0)
+                marker.at<uchar>(i,j) = 1;
+        }
+    }
+
+    im &= ~marker;
+}
+
+
+
+
+
+void thinning(cv::Mat& im)
+{
+    im /= 255;
+
+    cv::Mat prev = cv::Mat::zeros(im.size(), CV_8UC1);
+    cv::Mat diff;
+
+    do {
+        thinningIteration(im, 0);
+        thinningIteration(im, 1);
+        cv::absdiff(im, prev, diff);
+        im.copyTo(prev);
+
+    } 
+    while (cv::countNonZero(diff) > 0);
+
+    im *= 255;
+}
+
+
+
+
+int main( int argc, char** argv )
+{
+
+	namedWindow("Control", CV_WINDOW_AUTOSIZE); //create a window called "Control"
+
+
+
+
+	cvCreateTrackbar("LowH", "Control", &iLowH, 179); //Hue (0 - 179)
+	cvCreateTrackbar("HighH", "Control", &iHighH, 179);
+
+	cvCreateTrackbar("LowS", "Control", &iLowS, 255); //Saturation (0 - 255)
+	cvCreateTrackbar("HighS", "Control", &iHighS, 255);
+
+	cvCreateTrackbar("LowV", "Control", &iLowV, 255); //Value (0 - 255)
+	cvCreateTrackbar("HighV", "Control", &iHighV, 255);
+
+    while (true)
+   {
+		Mat imgOriginal;
+
+		imgOriginal=imread("hello.bmp");
+		imgpross=imgOriginal;			
+		Mat imgHSV;
+
+						
+		namedWindow("Source2", WINDOW_AUTOSIZE );//
+
+		createTrackbar( " Threshold:", "Control", &alpha, max_thresh, set_thresh );//
+		createTrackbar( " Blur:", "Control", &c, 200, set_thresh );//
+					
+		src_gray=imgThresholded;
+
+		thresh_callback( imgOriginal);
+
+			 cv::Mat src ;
+		  src=imgThresholded;
+		    
+		namedWindow("Control", CV_WINDOW_AUTOSIZE);
+
+
+		//    thinning(src);
+		    Mat newsrc;
+		    cvtColor(src, newsrc, CV_GRAY2BGR);
+		    cv::imshow("src", src);
+		    //nodeit(newsrc);
+		    cv::imshow("src_node", newsrc);
+		imshow("Original", imgOriginal); //show the original image
+
+		if (waitKey(30) == 27) //wait for 'esc' key press for 30ms. If 'esc' key is pressed, break 
+		{
+			cout << "esc key is pressed by user" << endl;
+			//break; 
+		}
+    }
+waitKey(0);
+   return 0;
+
+}
